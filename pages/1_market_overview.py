@@ -38,13 +38,14 @@ if mode == "Historical (Parquet)":
 
 @st.cache_data(ttl=60)
 def fetch_live_snapshot():
-    info_res = requests.get("https://api.binance.com/api/v3/exchangeInfo").json()
-    usdt_symbols = [s['symbol'] for s in info_res['symbols'] if s['quoteAsset'] == 'USDT' and s['status'] == 'TRADING']
+    try:
+        base_url = "https://data-api.binance.vision"
+        info_res = requests.get(f"{base_url}/api/v3/exchangeInfo").json()
+        
+        if 'symbols' not in info_res:
+            st.error(f"Live API Blocked on this server. Switch to 'Historical (Parquet)' Mode. Server response: {info_res}")
+            return pd.DataFrame()
             
-    ticker_res = requests.get("https://api.binance.com/api/v3/ticker/24hr").json()
-    df = pd.DataFrame(ticker_res)
-    df = df[df['symbol'].isin(usdt_symbols)].copy()
-    
         usdt_symbols = [s['symbol'] for s in info_res['symbols'] if s['quoteAsset'] == 'USDT' and s['status'] == 'TRADING']
                 
         ticker_res = requests.get(f"{base_url}/api/v3/ticker/24hr").json()
