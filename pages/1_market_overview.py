@@ -45,10 +45,19 @@ def fetch_live_snapshot():
     df = pd.DataFrame(ticker_res)
     df = df[df['symbol'].isin(usdt_symbols)].copy()
     
-    numeric_cols = ['lastPrice', 'highPrice', 'lowPrice', 'quoteVolume']
-    for col in numeric_cols:
-        df[col] = pd.to_numeric(df[col], errors='coerce')
-    return df
+        usdt_symbols = [s['symbol'] for s in info_res['symbols'] if s['quoteAsset'] == 'USDT' and s['status'] == 'TRADING']
+                
+        ticker_res = requests.get(f"{base_url}/api/v3/ticker/24hr").json()
+        df = pd.DataFrame(ticker_res)
+        df = df[df['symbol'].isin(usdt_symbols)].copy()
+        
+        numeric_cols = ['lastPrice', 'highPrice', 'lowPrice', 'quoteVolume']
+        for col in numeric_cols:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+        return df
+    except Exception as e:
+        st.error(f"Live API Failed: {e}. Switch to Historical (Parquet) Mode.")
+        return pd.DataFrame()
 
 @st.cache_data(ttl=60)
 def fetch_historical_snapshot(target_ms):
@@ -80,10 +89,11 @@ def fetch_historical_snapshot(target_ms):
 def fetch_live_deep_dive(symbols):
     results = []
     my_bar = st.progress(0, text="Running Deep Dive Diagnostics on Filtered Coins...")
+    base_url = "https://data-api.binance.vision"
     for i, symbol in enumerate(symbols):
         try:
-            res = requests.get(f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=15m&limit=96").json()
-            if not res or len(res) < 2: continue
+            res = requests.get(f"{base_url}/api/v3/klines?symbol={symbol}&interval=15m&limit=96").json()
+            if not isinstance(res, list) or len(res) < 2: continue
             last_closed = res[-2]
             current_forming = res[-1]
             high, low, close = float(last_closed[2]), float(last_closed[3]), float(last_closed[4])
